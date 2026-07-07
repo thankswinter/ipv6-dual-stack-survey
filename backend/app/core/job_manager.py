@@ -175,14 +175,16 @@ class SurveyJob:
             self.update_metrics({"arp_lines_parsed": valid})
             if scanned % (PARSE_PROGRESS_LINES * 2) == 0 or scanned == total:
                 self.add_debug(
-                    f"ARP 解析：{scanned}/{total} 行，有效 {valid} 条", "debug"
+                    "debug",
+                    f"ARP 解析：{scanned}/{total} 行，有效 {valid} 条",
                 )
 
         def ipv6_progress(scanned: int, total: int, valid: int) -> None:
             self.update_metrics({"ipv6_lines_parsed": valid})
             if scanned % (PARSE_PROGRESS_LINES * 2) == 0 or scanned == total:
                 self.add_debug(
-                    f"IPv6 解析：{scanned}/{total} 行，有效 {valid} 条", "debug"
+                    "debug",
+                    f"IPv6 解析：{scanned}/{total} 行，有效 {valid} 条",
                 )
 
         self.set_progress("parse_arp", "解析 ARP 表...")
@@ -283,7 +285,8 @@ class SurveyJob:
                 items = [d for d in items if d.role == role]
             total = len(items)
             size = min(max(page_size, 1), DEVICE_PAGE_SIZE_MAX)
-            start = (max(page, 1) - 1) * size
+            current_page = max(page, 1)
+            start = (current_page - 1) * size
             end = start + size
             return items[start:end], total
 
@@ -445,12 +448,16 @@ class JobManager:
         page_size: int = DEVICE_PAGE_SIZE_DEFAULT,
         stack_type: StackType | None = None,
         role: DeviceRole | None = None,
-    ) -> tuple[list[DeviceRecord], int, int]:
+    ) -> tuple[list[DeviceRecord], int, int, int, int]:
         job = self.get_job(job_id)
-        devices, total = job.get_devices_page(page, page_size, stack_type, role)
+        current_page = max(page, 1)
         size = min(max(page_size, 1), DEVICE_PAGE_SIZE_MAX)
+        devices, total = job.get_devices_page(current_page, size, stack_type, role)
         total_pages = max(1, math.ceil(total / size)) if total else 1
-        return devices, total, total_pages
+        if current_page > total_pages:
+            current_page = total_pages
+            devices, total = job.get_devices_page(current_page, size, stack_type, role)
+        return devices, total, total_pages, current_page, size
 
 
 job_manager = JobManager()

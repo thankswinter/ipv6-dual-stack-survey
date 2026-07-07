@@ -85,6 +85,7 @@ export default function App() {
     fetchJobDevices(jobId, devicePage, DEVICE_PAGE_SIZE, stack)
       .then((page) => {
         setDevices(page.devices);
+        setDevicePage(page.page);
         setDeviceTotal(page.total);
         setDeviceTotalPages(page.total_pages);
       })
@@ -435,15 +436,15 @@ export default function App() {
                   <div className="label">终端纯 IPv4</div>
                 </div>
                 <div className="stat-card ipv6">
-                  <div className="value">{stats.network_device_count}</div>
-                  <div className="label">网络设备</div>
+                  <div className="value">{stats.network_dual_stack_count}</div>
+                  <div className="label">网络设备双栈</div>
                 </div>
               </div>
 
               <div className="stats-grid secondary-stats">
                 <div className="stat-card">
-                  <div className="value">{stats.network_dual_stack_count}</div>
-                  <div className="label">网络设备双栈</div>
+                  <div className="value">{stats.network_device_count}</div>
+                  <div className="label">网络设备总数</div>
                 </div>
                 <div className="stat-card">
                   <div className="value">{stats.nd_neighbor_count}</div>

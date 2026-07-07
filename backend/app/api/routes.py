@@ -121,16 +121,22 @@ def get_job_devices(
     role: DeviceRole | None = None,
 ) -> DevicePageResponse:
     try:
-        devices, total, total_pages = job_manager.get_devices_page(
-            job_id, page=page, page_size=page_size, stack_type=stack_type, role=role
+        devices, total, total_pages, current_page, current_page_size = (
+            job_manager.get_devices_page(
+                job_id,
+                page=page,
+                page_size=page_size,
+                stack_type=stack_type,
+                role=role,
+            )
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     return DevicePageResponse(
         job_id=job_id,
-        page=page,
-        page_size=min(max(page_size, 1), 500),
+        page=current_page,
+        page_size=current_page_size,
         total=total,
         total_pages=total_pages,
         stack_type=stack_type.value if stack_type else None,

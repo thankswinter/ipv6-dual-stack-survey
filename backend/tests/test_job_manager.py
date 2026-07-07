@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from app.core.job_manager import JobManager
-from app.core.models import JobStatus, SurveyRequest, Vendor
+from app.core.models import DeviceRecord, JobStatus, StackType, SurveyRequest, Vendor
 from app.core.phases import CollectCheckpoint, CollectionCancelledError
 
 
@@ -88,3 +88,58 @@ class TestJobManager:
 
         call_kwargs = mock_collector.collect_phased.call_args.kwargs
         assert call_kwargs["checkpoint"].arp_output == "cached arp"
+
+    @patch("app.core.job_manager.create_collector")
+    def test_parse_progress_logs_use_debug_level(self, mock_factory):
+        from app.core.job_manager import SurveyJob
+
+        mock_collector = MagicMock()
+        mock_collector.parse_arp.side_effect = lambda output, on_progress=None: (
+            on_progress(1, 1, 1) if on_progress else None
+        ) or []
+        mock_collector.parse_ipv6_neighbors.side_effect = (
+            lambda output, on_progress=None: (
+                on_progress(1, 1, 1) if on_progress else None
+            )
+            or []
+        )
+        mock_factory.return_value = mock_collector
+
+        job = SurveyJob(job_id="t1", request=_request())
+        job.checkpoint.arp_output = "arp"
+        job.checkpoint.ipv6_output = "ipv6"
+        job._analyze_checkpoint()
+
+        parse_logs = [
+            log
+            for log in job.debug_logs
+            if log.message.startswith(("ARP 解析：", "IPv6 解析："))
+        ]
+        assert parse_logs
+        assert {log.level for log in parse_logs} == {"debug"}
+
+    def test_get_devices_page_normalizes_page_and_size(self):
+        from app.core.job_manager import SurveyJob
+
+        mgr = JobManager()
+        job = SurveyJob(job_id="t1", request=_request())
+        job.devices = [
+            DeviceRecord(
+                mac=f"00:11:22:33:44:{i:02X}",
+                stack_type=StackType.IPV4_ONLY,
+            )
+            for i in range(3)
+        ]
+        mgr._jobs[job.job_id] = job
+
+        devices, total, total_pages, page, page_size = mgr.get_devices_page(
+            job.job_id,
+            page=99,
+            page_size=0,
+        )
+
+        assert len(devices) == 1
+        assert total == 3
+        assert total_pages == 3
+        assert page == 3
+        assert page_size == 1
